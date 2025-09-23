@@ -15,7 +15,7 @@ jobs:
           - name: linux/arm64
             runner: ubuntu-24.04-arm
 
-    name: Build Gotenberg Image (${{ matrix.platform.name }})
+    name: Build ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.runner }}
     steps:
       - name: Prepare
@@ -40,20 +40,17 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: getlago/lago-gotenberg
-          tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build Docker image
         id: build
         uses: docker/build-push-action@v5
         with:
           context: .
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: getlago/lago-gotenberg
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: type=image,name=getlago/lago-gotenberg,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
 
       - name: Export Digest
         run: |
@@ -75,6 +72,7 @@ jobs:
           [ -e ./_tmp/${{ github.run_id }}/${{ github.run_attempt }}/digests ] && \
           rm -rf ./_tmp/${{ github.run_id }}/${{ github.run_attempt }}/digests
   merge:
+    name: Merge
     needs: build
     runs-on: ubuntu-latest
     steps:
