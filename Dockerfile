@@ -45,14 +45,19 @@ RUN mkdir pdfcpu && cd pdfcpu && \
       ./cmd/pdfcpu
 
 # gotenberg + gotenberg-chromium + gotenberg-libreoffice — three
-# entrypoints from the same source tree.
+# entrypoints from the same source tree. The chromium module also
+# requires `build/chromium-hyphen-data/` at runtime (per-language
+# hyphenation dictionaries); we copy it to /out/chromium-hyphen-data
+# here and stage it under CHROMIUM_HYPHEN_DATA_DIR_PATH in the
+# runtime image below.
 RUN mkdir gotenberg && cd gotenberg && \
     curl -fsSL "https://github.com/gotenberg/gotenberg/archive/refs/tags/${GOTENBERG_VERSION}.tar.gz" -o gotenberg.tar.gz && \
     tar --strip-components=1 -xzf gotenberg.tar.gz && \
     go mod download && go mod verify && \
     go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
     go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
-    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go
+    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go && \
+    cp -r build/chromium-hyphen-data /out/chromium-hyphen-data
 
 # unoconverter — Python script (LibreOffice UNO bridge). Same source URL as
 # upstream gotenberg's downloader-stage.
@@ -82,6 +87,13 @@ LABEL org.opencontainers.image.source="https://github.com/getlago/lago-gotenberg
 LABEL org.opencontainers.image.description="Hardened Wolfi-based gotenberg image for Lago"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# gotenberg's chromium module fails at boot without this env var; the
+# base image should own it, but the initial apko manifest for
+# gotenberg-base omitted it (fixed at the base in lago-packages#3, kept
+# here as belt-and-suspenders since the base's daily rebuild picks up
+# CVE bumps that would otherwise re-strip this if the manifest is edited).
+ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
+
 # The base image ships with USER 65532 as the default. Switch to root so
 # the RUN commands below can write to /usr/bin and /usr/local/share/fonts.
 # The final USER 65532 line at the bottom is what actually ships.
@@ -93,6 +105,12 @@ COPY --from=build /out/gotenberg-chromium   /usr/bin/gotenberg-chromium
 COPY --from=build /out/gotenberg-libreoffice /usr/bin/gotenberg-libreoffice
 COPY --from=build /out/unoconverter         /usr/bin/unoconverter
 COPY --from=build /out/pdftk-all.jar        /usr/bin/pdftk-all.jar
+
+# Chromium hyphenation dictionaries. The base image sets
+# CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data,
+# and gotenberg's chromium module refuses to start without the
+# directory existing on disk — this copy is what makes it happy.
+COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
 # script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
