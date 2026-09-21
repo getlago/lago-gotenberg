@@ -75,6 +75,13 @@ RUN curl -fsSL -o /out/pdftk-all.jar \
 # ---------------------------------------------------------------------------
 FROM ${RUNTIME_IMAGE}
 
+# GHCR reads this from the image manifest annotations to link the published
+# package back to its source repository — makes provenance visible on the
+# package page and lets repo permissions govern the package.
+LABEL org.opencontainers.image.source="https://github.com/getlago/lago-gotenberg"
+LABEL org.opencontainers.image.description="Hardened Wolfi-based gotenberg image for Lago"
+LABEL org.opencontainers.image.licenses="MIT"
+
 # The base image ships with USER 65532 as the default. Switch to root so
 # the RUN commands below can write to /usr/bin and /usr/local/share/fonts.
 # The final USER 65532 line at the bottom is what actually ships.

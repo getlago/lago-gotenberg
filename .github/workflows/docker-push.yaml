@@ -1,4 +1,4 @@
-name: Build and Push to Docker Hub
+name: Build and Push to GHCR
 
 on:
   push:
@@ -10,5 +10,10 @@ jobs:
     name: Build Gotenberg Image
     uses: getlago/lago/.github/workflows/docker-build-multi-arch.yaml@main
     with:
-      image-name: ghcr.io/getlago/gotenberg
+      # Publish under the repo's own package namespace so GHCR links the
+      # package back to lago-gotenberg (via the org.opencontainers.image.source
+      # label on the Dockerfile), and repo permissions inherit automatically.
+      # Previous name (ghcr.io/getlago/gotenberg) will be retired after
+      # everything upstream has moved off it.
+      image-name: ghcr.io/getlago/lago-gotenberg
       registry: ghcr
