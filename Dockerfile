@@ -45,14 +45,19 @@ RUN mkdir pdfcpu && cd pdfcpu && \
       ./cmd/pdfcpu
 
 # gotenberg + gotenberg-chromium + gotenberg-libreoffice — three
-# entrypoints from the same source tree.
+# entrypoints from the same source tree. The chromium module also
+# requires `build/chromium-hyphen-data/` at runtime (per-language
+# hyphenation dictionaries); we copy it to /out/chromium-hyphen-data
+# here and stage it under CHROMIUM_HYPHEN_DATA_DIR_PATH in the
+# runtime image below.
 RUN mkdir gotenberg && cd gotenberg && \
     curl -fsSL "https://github.com/gotenberg/gotenberg/archive/refs/tags/${GOTENBERG_VERSION}.tar.gz" -o gotenberg.tar.gz && \
     tar --strip-components=1 -xzf gotenberg.tar.gz && \
     go mod download && go mod verify && \
     go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
     go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
-    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go
+    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go && \
+    cp -r build/chromium-hyphen-data /out/chromium-hyphen-data
 
 # unoconverter — Python script (LibreOffice UNO bridge). Same source URL as
 # upstream gotenberg's downloader-stage.
@@ -93,6 +98,12 @@ COPY --from=build /out/gotenberg-chromium   /usr/bin/gotenberg-chromium
 COPY --from=build /out/gotenberg-libreoffice /usr/bin/gotenberg-libreoffice
 COPY --from=build /out/unoconverter         /usr/bin/unoconverter
 COPY --from=build /out/pdftk-all.jar        /usr/bin/pdftk-all.jar
+
+# Chromium hyphenation dictionaries. The base image sets
+# CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data,
+# and gotenberg's chromium module refuses to start without the
+# directory existing on disk — this copy is what makes it happy.
+COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
 # script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
