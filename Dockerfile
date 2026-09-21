@@ -10,8 +10,8 @@
 # reproducible / air-gapped builds, override to an immutable
 # `:<lago-packages-commit-sha>` tag at build time or edit here.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:latest
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:latest
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:985088eecde297e711e0847dcf7a17e1216b8659
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:985088eecde297e711e0847dcf7a17e1216b8659
 
 # Pinned upstream versions — match the previous
 # `gotenberg/gotenberg:8.32.0` bundle so behaviour stays identical.
