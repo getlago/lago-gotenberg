@@ -87,6 +87,13 @@ LABEL org.opencontainers.image.source="https://github.com/getlago/lago-gotenberg
 LABEL org.opencontainers.image.description="Hardened Wolfi-based gotenberg image for Lago"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# gotenberg's chromium module fails at boot without this env var; the
+# base image should own it, but the initial apko manifest for
+# gotenberg-base omitted it (fixed at the base in lago-packages#3, kept
+# here as belt-and-suspenders since the base's daily rebuild picks up
+# CVE bumps that would otherwise re-strip this if the manifest is edited).
+ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
+
 # The base image ships with USER 65532 as the default. Switch to root so
 # the RUN commands below can write to /usr/bin and /usr/local/share/fonts.
 # The final USER 65532 line at the bottom is what actually ships.
