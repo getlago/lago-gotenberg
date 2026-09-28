@@ -15,10 +15,20 @@ ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:985088eecde297e711e0847dcf7a17e
 
 # Pinned upstream versions — match the previous
 # `gotenberg/gotenberg:8.32.0` bundle so behaviour stays identical.
+#
+# Every network fetch below is verified against its pinned sha256 in
+# the same RUN as the curl, per the "no unverified downloads" rule in
+# getlago/lago-packages/CLAUDE.md. Bumping any *_VERSION means
+# re-hashing the corresponding artifact and updating the matching
+# *_SHA256 line — do both in the same commit, or the build fails fast.
 ARG GOTENBERG_VERSION=v8.32.0
-ARG PDFCPU_VERSION=v0.12.0
+ARG GOTENBERG_SHA256=f0fa9830fbb26b92cc3a148491235225e157e9e48ec6662f8a05f9d376c879f1
+ARG PDFCPU_VERSION=v0.15.0
+ARG PDFCPU_SHA256=69924a7363ea19b4f3d4799ebf78bcabfec75a735c9569983a6e2834b5e8c6b3
 ARG PDFTK_VERSION=v3.3.3
+ARG PDFTK_SHA256=a694d49bd03e1edd4c23b3ba808bc221eb8a8ccfe7bfd2a0a884b2b2fb425188
 ARG UNOCONVERTER_VERSION=v0.2.0
+ARG UNOCONVERTER_SHA256=c44c4a86ef68c1f34ee7a026e5ee8334346d1012a52e451cbffd25576cee97cf
 
 # ---------------------------------------------------------------------------
 # Build stage — go binaries + downloads. One stage instead of upstream's
@@ -28,16 +38,24 @@ ARG UNOCONVERTER_VERSION=v0.2.0
 FROM ${BUILD_IMAGE} AS build
 
 ARG GOTENBERG_VERSION
+ARG GOTENBERG_SHA256
 ARG PDFCPU_VERSION
+ARG PDFCPU_SHA256
 ARG PDFTK_VERSION
+ARG PDFTK_SHA256
 ARG UNOCONVERTER_VERSION
+ARG UNOCONVERTER_SHA256
 
 WORKDIR /src
 
 # pdfcpu — bundled Go PDF processor. Built with the same ldflags as
 # upstream so `pdfcpu version` returns the pinned version string.
+# The `sha256sum -c -` after curl aborts the RUN if upstream ever
+# reshuffles the tarball for a released tag — the build never sees
+# unverified bytes.
 RUN mkdir pdfcpu && cd pdfcpu && \
     curl -fsSL "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${PDFCPU_VERSION}.tar.gz" -o pdfcpu.tar.gz && \
+    echo "${PDFCPU_SHA256}  pdfcpu.tar.gz" | sha256sum -c - && \
     tar --strip-components=1 -xzf pdfcpu.tar.gz && \
     go mod download && go mod verify && \
     go build -o /out/pdfcpu \
@@ -45,25 +63,33 @@ RUN mkdir pdfcpu && cd pdfcpu && \
       ./cmd/pdfcpu
 
 # gotenberg + gotenberg-chromium + gotenberg-libreoffice — three
-# entrypoints from the same source tree.
+# entrypoints from the same source tree. The chromium module also
+# requires `build/chromium-hyphen-data/` at runtime (per-language
+# hyphenation dictionaries); we copy it to /out/chromium-hyphen-data
+# here and stage it under CHROMIUM_HYPHEN_DATA_DIR_PATH in the
+# runtime image below.
 RUN mkdir gotenberg && cd gotenberg && \
     curl -fsSL "https://github.com/gotenberg/gotenberg/archive/refs/tags/${GOTENBERG_VERSION}.tar.gz" -o gotenberg.tar.gz && \
+    echo "${GOTENBERG_SHA256}  gotenberg.tar.gz" | sha256sum -c - && \
     tar --strip-components=1 -xzf gotenberg.tar.gz && \
     go mod download && go mod verify && \
     go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
     go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
-    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go
+    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go && \
+    cp -r build/chromium-hyphen-data /out/chromium-hyphen-data
 
 # unoconverter — Python script (LibreOffice UNO bridge). Same source URL as
 # upstream gotenberg's downloader-stage.
 RUN curl -fsSL -o /out/unoconverter \
       "https://raw.githubusercontent.com/gotenberg/unoconverter/${UNOCONVERTER_VERSION}/unoconv" && \
+    echo "${UNOCONVERTER_SHA256}  /out/unoconverter" | sha256sum -c - && \
     chmod +x /out/unoconverter
 
 # pdftk-java — pdftk is unmaintained upstream; pdftk-java is the Java
 # port everyone uses. Same URL as upstream gotenberg.
 RUN curl -fsSL -o /out/pdftk-all.jar \
       "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/${PDFTK_VERSION}/pdftk-all.jar" && \
+    echo "${PDFTK_SHA256}  /out/pdftk-all.jar" | sha256sum -c - && \
     chmod +x /out/pdftk-all.jar
 
 
@@ -93,6 +119,12 @@ COPY --from=build /out/gotenberg-chromium   /usr/bin/gotenberg-chromium
 COPY --from=build /out/gotenberg-libreoffice /usr/bin/gotenberg-libreoffice
 COPY --from=build /out/unoconverter         /usr/bin/unoconverter
 COPY --from=build /out/pdftk-all.jar        /usr/bin/pdftk-all.jar
+
+# Chromium hyphenation dictionaries. The base image sets
+# CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data,
+# and gotenberg's chromium module refuses to start without the
+# directory existing on disk — this copy is what makes it happy.
+COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
 # script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
