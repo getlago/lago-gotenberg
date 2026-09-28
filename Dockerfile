@@ -135,9 +135,23 @@ COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/c
 # pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
 # script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
 # unoconverter references `python`, which Wolfi exposes as `python3.11`.
-RUN printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"\n' > /usr/bin/pdftk && \
+#
+# The base installs openjdk-21-jre but leaves PATH as /usr/local/bin:/usr/bin:
+# /bin, so the JVM's own bin directory is unreachable and the shim's bare
+# `java` fails at runtime — while gotenberg still advertises pdftk as an
+# active engine at boot. Link the JRE into /usr/bin so the shim resolves.
+# Hard-fail if no JRE is present: a silently pdftk-less image is exactly
+# the failure mode this is fixing.
+RUN if ! command -v java >/dev/null 2>&1; then \
+        javabin="$(ls -d /usr/lib/jvm/*/bin/java 2>/dev/null | head -1)"; \
+        [ -n "$javabin" ] || { echo "ERROR: no JRE found in base image" >&2; exit 1; }; \
+        ln -s "$javabin" /usr/bin/java; \
+    fi && \
+    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"\n' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python
+    ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    java -version && \
+    pdftk --version >/dev/null
 
 # Custom lago fonts — the only content-carrying change vs upstream
 # gotenberg. Preserved from the previous wrapper Dockerfile.
