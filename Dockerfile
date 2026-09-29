@@ -108,6 +108,13 @@ LABEL org.opencontainers.image.source="https://github.com/getlago/lago-gotenberg
 LABEL org.opencontainers.image.description="Hardened Wolfi-based gotenberg image for Lago"
 LABEL org.opencontainers.image.licenses="MIT"
 
+# gotenberg's chromium module refuses to boot without this env var. It
+# belongs at the base, but gotenberg-base never exported it (the fix,
+# lago-packages#3, is still open), so the consumer image has to own it.
+# Keep it even once the base ships it: it costs nothing and keeps the
+# image self-sufficient against a base rebuild that re-strips the var.
+ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
+
 # The base image ships with USER 65532 as the default. Switch to root so
 # the RUN commands below can write to /usr/bin and /usr/local/share/fonts.
 # The final USER 65532 line at the bottom is what actually ships.
@@ -120,18 +127,31 @@ COPY --from=build /out/gotenberg-libreoffice /usr/bin/gotenberg-libreoffice
 COPY --from=build /out/unoconverter         /usr/bin/unoconverter
 COPY --from=build /out/pdftk-all.jar        /usr/bin/pdftk-all.jar
 
-# Chromium hyphenation dictionaries. The base image sets
-# CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data,
-# and gotenberg's chromium module refuses to start without the
-# directory existing on disk — this copy is what makes it happy.
+# Chromium hyphenation dictionaries. gotenberg's chromium module needs
+# both the env var set above and this directory present on disk; it
+# refuses to start if either is missing.
 COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
 
 # pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
 # script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
 # unoconverter references `python`, which Wolfi exposes as `python3.11`.
-RUN printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"\n' > /usr/bin/pdftk && \
+#
+# The base installs openjdk-21-jre but leaves PATH as /usr/local/bin:/usr/bin:
+# /bin, so the JVM's own bin directory is unreachable and the shim's bare
+# `java` fails at runtime — while gotenberg still advertises pdftk as an
+# active engine at boot. Link the JRE into /usr/bin so the shim resolves.
+# Hard-fail if no JRE is present: a silently pdftk-less image is exactly
+# the failure mode this is fixing.
+RUN if ! command -v java >/dev/null 2>&1; then \
+        javabin="$(ls -d /usr/lib/jvm/*/bin/java 2>/dev/null | head -1)"; \
+        [ -n "$javabin" ] || { echo "ERROR: no JRE found in base image" >&2; exit 1; }; \
+        ln -s "$javabin" /usr/bin/java; \
+    fi && \
+    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"\n' > /usr/bin/pdftk && \
     chmod +x /usr/bin/pdftk && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python
+    ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    java -version && \
+    pdftk --version >/dev/null
 
 # Custom lago fonts — the only content-carrying change vs upstream
 # gotenberg. Preserved from the previous wrapper Dockerfile.
