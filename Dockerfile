@@ -30,6 +30,25 @@ ARG PDFTK_SHA256=a694d49bd03e1edd4c23b3ba808bc221eb8a8ccfe7bfd2a0a884b2b2fb42518
 ARG UNOCONVERTER_VERSION=v0.2.0
 ARG UNOCONVERTER_SHA256=c44c4a86ef68c1f34ee7a026e5ee8334346d1012a52e451cbffd25576cee97cf
 
+# Go module security bumps applied on top of the pinned source trees.
+# Both upstreams vendor modules with open CVEs and neither has cut a
+# release carrying the fixes, so we bump in the build stage rather than
+# moving off the pinned GOTENBERG_VERSION — runtime behaviour stays
+# identical to the 8.32.0 bundle.
+#
+# x/net is above the minimum the advisories ask for (v0.55.0): both
+# x/crypto v0.56.0 and grpc v1.83.2 raise their own floor past it, so a
+# lower pin fails to resolve. These are the versions gotenberg v8.37.0
+# ships, which is where they came from.
+#
+# Retire a line once the pinned *_VERSION ships a go.mod that already
+# requires at least this version. `go get` on an already-satisfied
+# module is a no-op, so a stale line is harmless but misleading.
+ARG GO_CRYPTO_VERSION=v0.56.0
+ARG GO_NET_VERSION=v0.58.0
+ARG GO_GRPC_VERSION=v1.83.2
+ARG GO_ECHO_VERSION=v4.15.3
+
 # ---------------------------------------------------------------------------
 # Build stage — go binaries + downloads. One stage instead of upstream's
 # four; the lago-packages/gotenberg-build image ships go, git, curl and
@@ -45,6 +64,10 @@ ARG PDFTK_VERSION
 ARG PDFTK_SHA256
 ARG UNOCONVERTER_VERSION
 ARG UNOCONVERTER_SHA256
+ARG GO_CRYPTO_VERSION
+ARG GO_NET_VERSION
+ARG GO_GRPC_VERSION
+ARG GO_ECHO_VERSION
 
 WORKDIR /src
 
@@ -57,6 +80,7 @@ RUN mkdir pdfcpu && cd pdfcpu && \
     curl -fsSL "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${PDFCPU_VERSION}.tar.gz" -o pdfcpu.tar.gz && \
     echo "${PDFCPU_SHA256}  pdfcpu.tar.gz" | sha256sum -c - && \
     tar --strip-components=1 -xzf pdfcpu.tar.gz && \
+    go get golang.org/x/crypto@${GO_CRYPTO_VERSION} && \
     go mod download && go mod verify && \
     go build -o /out/pdfcpu \
       -ldflags "-s -w -X 'main.version=${PDFCPU_VERSION}' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=${PDFCPU_VERSION}' -X main.builtBy=lago-gotenberg" \
@@ -72,6 +96,10 @@ RUN mkdir gotenberg && cd gotenberg && \
     curl -fsSL "https://github.com/gotenberg/gotenberg/archive/refs/tags/${GOTENBERG_VERSION}.tar.gz" -o gotenberg.tar.gz && \
     echo "${GOTENBERG_SHA256}  gotenberg.tar.gz" | sha256sum -c - && \
     tar --strip-components=1 -xzf gotenberg.tar.gz && \
+    go get golang.org/x/crypto@${GO_CRYPTO_VERSION} \
+           golang.org/x/net@${GO_NET_VERSION} \
+           google.golang.org/grpc@${GO_GRPC_VERSION} \
+           github.com/labstack/echo/v4@${GO_ECHO_VERSION} && \
     go mod download && go mod verify && \
     go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
     go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
