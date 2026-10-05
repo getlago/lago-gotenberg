@@ -5,13 +5,16 @@
 # from source on the lago-packages base images, published to GHCR.
 # See getlago/lago-packages for the base image definitions.
 #
-# TAG PIN: both ARGs below default to `:latest`, which the daily
-# rebuild of lago-packages keeps within ~24h of upstream Wolfi. For
-# reproducible / air-gapped builds, override to an immutable
-# `:<lago-packages-commit-sha>` tag at build time or edit here.
+# TAG PIN: both ARGs below pin an immutable `:<lago-packages-commit-sha>`
+# tag rather than `:latest`, so a build here is reproducible and a base
+# rebuild cannot change this image under us. Bump them deliberately.
+#
+# This pin carries chromium 154.0.8037.92 from Lago's melange overlay,
+# replacing Wolfi's 149 — which had no fix available and failed the base's
+# CVE gate daily. See getlago/lago-infrastructure packages/chromium.yaml.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:985088eecde297e711e0847dcf7a17e1216b8659
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:985088eecde297e711e0847dcf7a17e1216b8659
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:485f18545ed619befc31bcec56434371cc2f8e44
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:485f18545ed619befc31bcec56434371cc2f8e44
 
 # Pinned upstream versions — match the previous
 # `gotenberg/gotenberg:8.32.0` bundle so behaviour stays identical.
