@@ -5,9 +5,11 @@
 # from source on the lago-packages base images, published to GHCR.
 # See getlago/lago-packages for the base image definitions.
 #
-# TAG PIN: both ARGs below pin an immutable `:<lago-packages-commit-sha>`
-# tag rather than `:latest`, so a build here is reproducible and a base
-# rebuild cannot change this image under us. Bump them deliberately.
+# BASE PIN: `:<YYYYMMDD>-r<run>@sha256:<index digest>`, an immutable
+# lago-packages publish. Docker builds from the digest, so a build is
+# reproducible. Renovate (getlago/lago-packages renovate/lago-bases) moves tag
+# and digest together when a newer base is published; the base refresh
+# rebuilds deployed tags with a newer RUNTIME_IMAGE in between.
 #
 # The base pin carries chromium 155.0.8059.79 from Lago's melange overlay,
 # replacing Wolfi's 149 — which had no fix available and failed the base's
@@ -17,8 +19,8 @@
 # publishes a base only when its digest moves, so each image's newest tag is
 # the commit that last changed it.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:9335f12aec9ba04ec8bf7206a308782efaa3ffcf
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:d5c76684b8525689a18d16391cee1c083f2855fa
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261023-r68@sha256:fb1df247bfe7c703e8634ce7727a5ff51283fb7578d5badd31e62e92d24bb7d7
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261016-r56@sha256:b63fc10987662cc1df9bf685da097dd157cbaa2da4c8c86c1f75a77a344584fe
 
 # Pinned upstream versions — match the previous
 # `gotenberg/gotenberg:8.32.0` bundle so behaviour stays identical.
