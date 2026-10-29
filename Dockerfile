@@ -22,20 +22,26 @@
 ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r1043@sha256:d4d54fb5c25ed065a2084a756558c5be44826736f3027ad47da8b025f927d2e8
 ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261029-r1041@sha256:de63a1dced0a5035f32b21ab91d05896a8867756b567c6307aeefdf677c50bbf
 
-# Pinned upstream versions — match the previous
-# `gotenberg/gotenberg:8.39.0` bundle so behaviour stays identical.
-#
-# Every network fetch below is verified against its pinned sha256 in
-# the same RUN as the curl, per the "no unverified downloads" rule in
-# getlago/lago-packages/CLAUDE.md. Bumping any *_VERSION means
-# re-hashing the corresponding artifact and updating the matching
-# *_SHA256 line — do both in the same commit, or the build fails fast.
+# Pinned upstream downloads. Renovate moves each *_VERSION (getlago/lago-packages
+# renovate/pinned-downloads), and the PR workflow recomputes the matching
+# *_SHA256 from the `# sha256:` URL. Each fetch below is verified against
+# its sha256 in the same RUN as the curl ("no unverified downloads",
+# getlago/lago-packages/CLAUDE.md). gotenberg and unoconverter move
+# together: gotenberg passes unoconverter flags.
+# renovate: datasource=github-releases depName=gotenberg/gotenberg
+# sha256: https://github.com/gotenberg/gotenberg/archive/refs/tags/${VERSION}.tar.gz
 ARG GOTENBERG_VERSION=v8.39.0
 ARG GOTENBERG_SHA256=11b3ec380dc0cd0e8c6782052bad92adeb7493e61c7852ace606e947efdee142
+# renovate: datasource=github-releases depName=pdfcpu/pdfcpu
+# sha256: https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${VERSION}.tar.gz
 ARG PDFCPU_VERSION=v0.16.3
 ARG PDFCPU_SHA256=4864561bb99633c06f917eae780eccbc98b3ede259b4a774e699a893eff2a56e
+# renovate: datasource=gitlab-tags depName=pdftk-java/pdftk
+# sha256: https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/${VERSION}/pdftk-all.jar
 ARG PDFTK_VERSION=v3.3.3
 ARG PDFTK_SHA256=a694d49bd03e1edd4c23b3ba808bc221eb8a8ccfe7bfd2a0a884b2b2fb425188
+# renovate: datasource=github-tags depName=gotenberg/unoconverter
+# sha256: https://raw.githubusercontent.com/gotenberg/unoconverter/${VERSION}/unoconv
 ARG UNOCONVERTER_VERSION=v0.5.0
 ARG UNOCONVERTER_SHA256=e9b41e9b64849a2b0c20913635a879c530757472a5111896bcb33edefdd12b0b
 
