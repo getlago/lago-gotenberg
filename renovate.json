@@ -1,6 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>getlago/lago-packages//renovate/lago-bases-only"
+    "github>getlago/lago-packages//renovate/lago-bases",
+    "github>getlago/lago-packages//renovate/pinned-downloads"
+  ],
+  "enabledManagers": ["dockerfile", "custom.regex"],
+  "dependencyDashboard": false,
+  "packageRules": [
+    {
+      "description": "Dockerfile images: only the lago-packages bases.",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["!ghcr.io/getlago/**"],
+      "enabled": false
+    }
   ]
 }
