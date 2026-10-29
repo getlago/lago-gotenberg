@@ -23,21 +23,21 @@ ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r76@sha256:35dfca305740
 ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261029-r1041@sha256:de63a1dced0a5035f32b21ab91d05896a8867756b567c6307aeefdf677c50bbf
 
 # Pinned upstream versions — match the previous
-# `gotenberg/gotenberg:8.32.0` bundle so behaviour stays identical.
+# `gotenberg/gotenberg:8.39.0` bundle so behaviour stays identical.
 #
 # Every network fetch below is verified against its pinned sha256 in
 # the same RUN as the curl, per the "no unverified downloads" rule in
 # getlago/lago-packages/CLAUDE.md. Bumping any *_VERSION means
 # re-hashing the corresponding artifact and updating the matching
 # *_SHA256 line — do both in the same commit, or the build fails fast.
-ARG GOTENBERG_VERSION=v8.32.0
-ARG GOTENBERG_SHA256=f0fa9830fbb26b92cc3a148491235225e157e9e48ec6662f8a05f9d376c879f1
-ARG PDFCPU_VERSION=v0.15.0
-ARG PDFCPU_SHA256=69924a7363ea19b4f3d4799ebf78bcabfec75a735c9569983a6e2834b5e8c6b3
+ARG GOTENBERG_VERSION=v8.39.0
+ARG GOTENBERG_SHA256=11b3ec380dc0cd0e8c6782052bad92adeb7493e61c7852ace606e947efdee142
+ARG PDFCPU_VERSION=v0.16.3
+ARG PDFCPU_SHA256=4864561bb99633c06f917eae780eccbc98b3ede259b4a774e699a893eff2a56e
 ARG PDFTK_VERSION=v3.3.3
 ARG PDFTK_SHA256=a694d49bd03e1edd4c23b3ba808bc221eb8a8ccfe7bfd2a0a884b2b2fb425188
-ARG UNOCONVERTER_VERSION=v0.2.0
-ARG UNOCONVERTER_SHA256=c44c4a86ef68c1f34ee7a026e5ee8334346d1012a52e451cbffd25576cee97cf
+ARG UNOCONVERTER_VERSION=v0.5.0
+ARG UNOCONVERTER_SHA256=e9b41e9b64849a2b0c20913635a879c530757472a5111896bcb33edefdd12b0b
 
 # ---------------------------------------------------------------------------
 # Build stage — go binaries + downloads. One stage instead of upstream's
