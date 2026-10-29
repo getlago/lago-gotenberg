@@ -1,0 +1,44 @@
+name: PR
+
+# Every PR: build the image and render PDFs with it. Renovate PRs that move
+# a pinned download first get its sha256 recomputed and pushed
+# (getlago/lago-packages .github/actions/pinned-downloads). That push does
+# not start a new run, so the build below checks out the pushed commit.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rehash:
+    name: Rehash pinned downloads
+    if: startsWith(github.head_ref, 'renovate/') && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: getlago/lago-packages/.github/actions/pinned-downloads@02ff985e0121b925b9215d58fd3cb6331599ef1d # getlago/lago-packages#43, repin after merge
+
+  build:
+    name: Build and smoke test
+    needs: rehash
+    if: ${{ !failure() && !cancelled() }}
+    # Prod runs gotenberg on arm64.
+    runs-on: linux-arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.rehash.result == 'success' && github.head_ref || '' }}
+      - run: docker build -t lago-gotenberg:pr .
+      - run: ./scripts/smoke-test.sh lago-gotenberg:pr
