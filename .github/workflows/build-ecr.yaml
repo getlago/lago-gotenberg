@@ -1,0 +1,25 @@
+name: Build and Push to ECR
+
+# Lago Cloud image: every main commit as sha-<short>. lago-deploy deploys
+# that tag, and its base refresh rebuilds it on a fresh gotenberg-base.
+# Release tags still publish to GHCR (docker-push.yaml) for self-hosting.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Gotenberg Image
+    permissions:
+      contents: read
+      id-token: write
+      packages: write # required by the reusable workflow's own permissions ceiling; unused here (registry: ecr)
+    uses: getlago/lago/.github/workflows/docker-build-multi-arch.yaml@main
+    with:
+      image-name: 201661579678.dkr.ecr.us-east-1.amazonaws.com/lago/gotenberg
+      registry: ecr
+      platforms: amd64,arm64
+      role-to-assume: arn:aws:iam::201661579678:role/github-actions-ecr-push-lago-gotenberg
