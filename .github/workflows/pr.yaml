@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.head_ref }}
-      - uses: getlago/lago-packages/.github/actions/pinned-downloads@02ff985e0121b925b9215d58fd3cb6331599ef1d # getlago/lago-packages#43, repin after merge
+      - uses: getlago/lago-packages/.github/actions/pinned-downloads@d938719e3b20a3a0598a09db1c31ec9ace9d1e30 # lago-packages#43
 
   build:
     name: Build and smoke test
