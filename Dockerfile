@@ -19,7 +19,7 @@
 # publishes a base only when its digest moves, so each image's newest tag is
 # the commit that last changed it.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r76@sha256:35dfca3057404eb65acdbbf7f033529ca8848bb23e7f163a1117a7346e81558b
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r1043@sha256:d4d54fb5c25ed065a2084a756558c5be44826736f3027ad47da8b025f927d2e8
 ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261029-r1041@sha256:de63a1dced0a5035f32b21ab91d05896a8867756b567c6307aeefdf677c50bbf
 
 # Pinned upstream versions — match the previous
