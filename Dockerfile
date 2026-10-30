@@ -20,7 +20,7 @@
 # the commit that last changed it.
 
 ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r1043@sha256:d4d54fb5c25ed065a2084a756558c5be44826736f3027ad47da8b025f927d2e8
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261029-r1087@sha256:8f17dfde17ef458c94666b628df60a0546a883afb4054371337575340c48bf56
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261030-r1103@sha256:0ddcd881ecabd38fffc180bf079606288febdc237c02d33bf30c19db54c044d6
 
 # Pinned upstream downloads. Renovate moves each *_VERSION (getlago/lago-packages
 # renovate/pinned-downloads), and the PR workflow recomputes the matching
