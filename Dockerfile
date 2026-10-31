@@ -19,8 +19,8 @@
 # publishes a base only when its digest moves, so each image's newest tag is
 # the commit that last changed it.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261029-r1043@sha256:d4d54fb5c25ed065a2084a756558c5be44826736f3027ad47da8b025f927d2e8
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261030-r1103@sha256:0ddcd881ecabd38fffc180bf079606288febdc237c02d33bf30c19db54c044d6
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261031-r1145@sha256:ed9fafc6fa8d35884b29edfc03fdd43e532a7589a68eec32a8397ca2b2966569
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261031-r1144@sha256:c8a972ec8f362930d1279ab4b7dd257babfa5dc64273dc5fe06474e9d9e25d3e
 
 # Pinned upstream downloads. Renovate moves each *_VERSION (getlago/lago-packages
 # renovate/pinned-downloads), and the PR workflow recomputes the matching
