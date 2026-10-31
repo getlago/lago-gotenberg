@@ -34,7 +34,7 @@ ARG GOTENBERG_VERSION=v8.39.0
 ARG GOTENBERG_SHA256=11b3ec380dc0cd0e8c6782052bad92adeb7493e61c7852ace606e947efdee142
 # renovate: datasource=github-releases depName=pdfcpu/pdfcpu
 # sha256: https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${VERSION}.tar.gz
-ARG PDFCPU_VERSION=v0.16.3
+ARG PDFCPU_VERSION=v0.16.4
 ARG PDFCPU_SHA256=4864561bb99633c06f917eae780eccbc98b3ede259b4a774e699a893eff2a56e
 # renovate: datasource=gitlab-tags depName=pdftk-java/pdftk
 # sha256: https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/${VERSION}/pdftk-all.jar
