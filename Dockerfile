@@ -11,7 +11,7 @@
 # and digest together when a newer base is published; the base refresh
 # rebuilds deployed tags with a newer RUNTIME_IMAGE in between.
 #
-# The base pin carries chromium 156.0.8078.47 from Lago's melange overlay,
+# The base pin carries chromium 157.0.8103.78 from Lago's melange overlay,
 # replacing Wolfi's 149 — which had no fix available and failed the base's
 # CVE gate daily. See getlago/lago-packages packages/chromium.yaml.
 #
@@ -20,7 +20,7 @@
 # the commit that last changed it.
 
 ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261113-r1811@sha256:d58d461bc27d78d923e4a801060430d49b24aa6145e898b63cfadb40dae70e6c
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261108-r1590@sha256:71aa9df5cb50537fd5fe93177a9dafe5a9d04f1a91d4e47b95c2d978b980f95f
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261113-r1840@sha256:aa1aba8691386502bba6dca02b4abddf3879988807244b6d34c46c4582b52215
 
 # Pinned upstream downloads. Renovate moves each *_VERSION (getlago/lago-packages
 # renovate/pinned-downloads), and the PR workflow recomputes the matching
