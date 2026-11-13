@@ -30,7 +30,7 @@ ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261113-r1840@sha256:aa1aba869
 # together: gotenberg passes unoconverter flags.
 # renovate: datasource=github-releases depName=gotenberg/gotenberg
 # sha256: https://github.com/gotenberg/gotenberg/archive/refs/tags/${VERSION}.tar.gz
-ARG GOTENBERG_VERSION=v8.40.0
+ARG GOTENBERG_VERSION=v9.4.0
 ARG GOTENBERG_SHA256=0b231f8faea9f8dbf7616237ab6f359045950f30a2add7d11de05ecbbb33bfa4
 # renovate: datasource=github-releases depName=pdfcpu/pdfcpu
 # sha256: https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${VERSION}.tar.gz
