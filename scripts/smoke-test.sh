@@ -4,7 +4,14 @@
 set -euo pipefail
 image=$1
 dir=$(mktemp -d)
-trap 'docker rm -f smoke >/dev/null 2>&1 || true; rm -rf "$dir"' EXIT
+cleanup() {
+  status=$?
+  # On failure, show why: without the container log a boot error is invisible.
+  [[ $status -eq 0 ]] || docker logs smoke 2>&1 | tail -50 >&2 || true
+  docker rm -f smoke >/dev/null 2>&1 || true
+  rm -rf "$dir"
+}
+trap cleanup EXIT
 
 docker run -d --name smoke -p 127.0.0.1:3000:3000 \
   --read-only --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges \
