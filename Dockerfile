@@ -11,7 +11,7 @@
 # and digest together when a newer base is published; the base refresh
 # rebuilds deployed tags with a newer RUNTIME_IMAGE in between.
 #
-# The base pin carries chromium 157.0.8103.78 from Lago's melange overlay,
+# The base pin carries chromium 158.0.8127.88 from Lago's melange overlay,
 # replacing Wolfi's 149 — which had no fix available and failed the base's
 # CVE gate daily. See getlago/lago-packages packages/chromium.yaml.
 #
@@ -19,31 +19,24 @@
 # publishes a base only when its digest moves, so each image's newest tag is
 # the commit that last changed it.
 
-ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261116-r1947@sha256:97d2e42f238f5e2e6332e4d62e778ea35a2874ad0272260addbebe9cf89214a9
-ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261116-r1946@sha256:4271972dd6e078c95d73e2634e7e49ffcc98fd41a6aba0d87c17aaeca0b5dc56
+ARG BUILD_IMAGE=ghcr.io/getlago/gotenberg-build:20261125-r2441@sha256:8b9348a97a534dd55b5076d4a2eac0bde24a3eafc42ef353b17291678220744d
+ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261125-r2471@sha256:862a81f311299a137522cda522a1f3bc1a5c658c19314600459915d1c9bd8cd6
 
 # Pinned upstream downloads. Renovate moves each *_VERSION (getlago/lago-packages
 # renovate/pinned-downloads), and the PR workflow recomputes the matching
 # *_SHA256 from the `# sha256:` URL. Each fetch below is verified against
 # its sha256 in the same RUN as the curl ("no unverified downloads",
-# getlago/lago-packages/CLAUDE.md). gotenberg and unoconverter move
-# together: gotenberg passes unoconverter flags.
+# getlago/lago-packages/CLAUDE.md).
 # renovate: datasource=github-releases depName=gotenberg/gotenberg
 # sha256: https://github.com/gotenberg/gotenberg/archive/refs/tags/${VERSION}.tar.gz
-ARG GOTENBERG_VERSION=v8.40.0
-ARG GOTENBERG_SHA256=0b231f8faea9f8dbf7616237ab6f359045950f30a2add7d11de05ecbbb33bfa4
-# renovate: datasource=github-releases depName=pdfcpu/pdfcpu
-# sha256: https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${VERSION}.tar.gz
-ARG PDFCPU_VERSION=v0.16.4
-ARG PDFCPU_SHA256=d10377ca44063427b86732b2cbb110b56d10311e8961bf402889baa942d979ff
-# renovate: datasource=gitlab-tags depName=pdftk-java/pdftk
-# sha256: https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/${VERSION}/pdftk-all.jar
-ARG PDFTK_VERSION=v3.3.3
-ARG PDFTK_SHA256=a694d49bd03e1edd4c23b3ba808bc221eb8a8ccfe7bfd2a0a884b2b2fb425188
-# renovate: datasource=github-tags depName=gotenberg/unoconverter
-# sha256: https://raw.githubusercontent.com/gotenberg/unoconverter/${VERSION}/unoconv
-ARG UNOCONVERTER_VERSION=v0.5.0
-ARG UNOCONVERTER_SHA256=e9b41e9b64849a2b0c20913635a879c530757472a5111896bcb33edefdd12b0b
+ARG GOTENBERG_VERSION=v9.10.1
+ARG GOTENBERG_SHA256=df2c02eb855abf5bd02db4c04b6c542cdbc8e2c6dcc245182dd5248c745e0f3f
+# lok: gotenberg 9 converts office documents through LibreOfficeKit with this
+# binary, in place of unoconverter. Upstream publishes checksums.txt with each
+# release; bump the version and both per-arch sha256 together, from it.
+ARG LOK_VERSION=v0.0.8
+ARG LOK_SHA256_AMD64=a2ef770fd36f06dc5f6a329b3722019db18adae82466d4fcb5b5fc470dd8d5a2
+ARG LOK_SHA256_ARM64=87c99f6c9fd54d9340cda3de49a7dbfe89746a266d8b195e3dfdf12b2df20539
 
 # ---------------------------------------------------------------------------
 # Build stage — go binaries + downloads. One stage instead of upstream's
@@ -54,65 +47,49 @@ FROM ${BUILD_IMAGE} AS build
 
 ARG GOTENBERG_VERSION
 ARG GOTENBERG_SHA256
-ARG PDFCPU_VERSION
-ARG PDFCPU_SHA256
-ARG PDFTK_VERSION
-ARG PDFTK_SHA256
-ARG UNOCONVERTER_VERSION
-ARG UNOCONVERTER_SHA256
+ARG LOK_VERSION
+ARG LOK_SHA256_AMD64
+ARG LOK_SHA256_ARM64
+ARG TARGETARCH
 
 WORKDIR /src
-
-# pdfcpu — bundled Go PDF processor. Built with the same ldflags as
-# upstream so `pdfcpu version` returns the pinned version string.
-# The `sha256sum -c -` after curl aborts the RUN if upstream ever
-# reshuffles the tarball for a released tag — the build never sees
-# unverified bytes.
-RUN mkdir pdfcpu && cd pdfcpu && \
-    curl -fsSL "https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${PDFCPU_VERSION}.tar.gz" -o pdfcpu.tar.gz && \
-    echo "${PDFCPU_SHA256}  pdfcpu.tar.gz" | sha256sum -c - && \
-    tar --strip-components=1 -xzf pdfcpu.tar.gz && \
-    go mod download && go mod verify && \
-    go build -o /out/pdfcpu \
-      -ldflags "-s -w -X 'main.version=${PDFCPU_VERSION}' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=${PDFCPU_VERSION}' -X main.builtBy=lago-gotenberg" \
-      ./cmd/pdfcpu
 
 # gotenberg + gotenberg-chromium + gotenberg-libreoffice — three
 # entrypoints from the same source tree. The chromium module also
 # requires `build/chromium-hyphen-data/` at runtime (per-language
 # hyphenation dictionaries); we copy it to /out/chromium-hyphen-data
 # here and stage it under CHROMIUM_HYPHEN_DATA_DIR_PATH in the
-# runtime image below.
+# runtime image below. The `sha256sum -c -` after curl aborts the RUN if
+# upstream ever reshuffles the tarball for a released tag.
 RUN mkdir gotenberg && cd gotenberg && \
     curl -fsSL "https://github.com/gotenberg/gotenberg/archive/refs/tags/${GOTENBERG_VERSION}.tar.gz" -o gotenberg.tar.gz && \
     echo "${GOTENBERG_SHA256}  gotenberg.tar.gz" | sha256sum -c - && \
     tar --strip-components=1 -xzf gotenberg.tar.gz && \
     go mod download && go mod verify && \
-    go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
-    go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
-    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go && \
+    go build -o /out/gotenberg -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v9/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg/main.go && \
+    go build -o /out/gotenberg-chromium -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v9/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-chromium/main.go && \
+    go build -o /out/gotenberg-libreoffice -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v9/cmd.Version=${GOTENBERG_VERSION}'" cmd/gotenberg-libreoffice/main.go && \
     cp -r build/chromium-hyphen-data /out/chromium-hyphen-data
 
-# unoconverter — Python script (LibreOffice UNO bridge). Same source URL as
-# upstream gotenberg's downloader-stage.
-RUN curl -fsSL -o /out/unoconverter \
-      "https://raw.githubusercontent.com/gotenberg/unoconverter/${UNOCONVERTER_VERSION}/unoconv" && \
-    echo "${UNOCONVERTER_SHA256}  /out/unoconverter" | sha256sum -c - && \
-    chmod +x /out/unoconverter
-
-# pdftk-java — pdftk is unmaintained upstream; pdftk-java is the Java
-# port everyone uses. Same URL as upstream gotenberg.
-RUN curl -fsSL -o /out/pdftk-all.jar \
-      "https://gitlab.com/api/v4/projects/5024297/packages/generic/pdftk-java/${PDFTK_VERSION}/pdftk-all.jar" && \
-    echo "${PDFTK_SHA256}  /out/pdftk-all.jar" | sha256sum -c - && \
-    chmod +x /out/pdftk-all.jar
-
+# lok — prebuilt per arch. Upstream installs it with `curl install.sh | sh`;
+# here the archive is checked against its pinned sha256 before extraction.
+RUN case "${TARGETARCH}" in \
+      amd64) sha256="${LOK_SHA256_AMD64}" ;; \
+      arm64) sha256="${LOK_SHA256_ARM64}" ;; \
+      *) echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac && \
+    archive="lok_${LOK_VERSION#v}_linux_${TARGETARCH}.tar.gz" && \
+    curl -fsSL -o "${archive}" "https://github.com/gotenberg/lok/releases/download/${LOK_VERSION}/${archive}" && \
+    echo "${sha256}  ${archive}" | sha256sum -c - && \
+    tar -xzf "${archive}" lok && \
+    install -m 0755 lok /out/lok
 
 # ---------------------------------------------------------------------------
 # Runtime stage — hardened Wolfi. Every runtime dependency (chromium,
-# libreoffice-25.8, openjdk-21-jre, qpdf, exiftool, python-3.11, dumb-init,
-# Noto/Liberation fonts) is baked into lago-packages/gotenberg-base, so
-# this stage only drops in the binaries + custom fonts + the pdftk shim.
+# libreoffice-25.8, dumb-init, Noto/Liberation fonts) is baked into
+# lago-packages/gotenberg-base, so this stage only drops in the binaries
+# and the custom fonts. Gotenberg 9 handles PDFs in-process: the base's
+# JRE, qpdf, exiftool and python are no longer used.
 # ---------------------------------------------------------------------------
 FROM ${RUNTIME_IMAGE}
 
@@ -130,43 +107,24 @@ LABEL org.opencontainers.image.licenses="MIT"
 # image self-sufficient against a base rebuild that re-strips the var.
 ENV CHROMIUM_HYPHEN_DATA_DIR_PATH=/opt/gotenberg/chromium-hyphen-data
 
+# gotenberg 9 refuses to boot without lok, even with the LibreOffice routes
+# disabled. The base does not export it yet.
+ENV LOK_BIN_PATH=/usr/bin/lok
+
 # The base image ships with USER 65532 as the default. Switch to root so
 # the RUN commands below can write to /usr/bin and /usr/local/share/fonts.
 # The final USER 65532 line at the bottom is what actually ships.
 USER root
 
-COPY --from=build /out/pdfcpu               /usr/bin/pdfcpu
 COPY --from=build /out/gotenberg            /usr/bin/gotenberg
 COPY --from=build /out/gotenberg-chromium   /usr/bin/gotenberg-chromium
 COPY --from=build /out/gotenberg-libreoffice /usr/bin/gotenberg-libreoffice
-COPY --from=build /out/unoconverter         /usr/bin/unoconverter
-COPY --from=build /out/pdftk-all.jar        /usr/bin/pdftk-all.jar
+COPY --from=build /out/lok                  /usr/bin/lok
 
 # Chromium hyphenation dictionaries. gotenberg's chromium module needs
 # both the env var set above and this directory present on disk; it
 # refuses to start if either is missing.
 COPY --from=build --chown=65532:65532 /out/chromium-hyphen-data /opt/gotenberg/chromium-hyphen-data
-
-# pdftk shim — upstream gotenberg wraps pdftk-java in a one-line bash
-# script so callers can `pdftk foo.pdf …` without invoking `java -jar`.
-# unoconverter references `python`, which Wolfi exposes as `python3.11`.
-#
-# The base installs openjdk-21-jre but leaves PATH as /usr/local/bin:/usr/bin:
-# /bin, so the JVM's own bin directory is unreachable and the shim's bare
-# `java` fails at runtime — while gotenberg still advertises pdftk as an
-# active engine at boot. Link the JRE into /usr/bin so the shim resolves.
-# Hard-fail if no JRE is present: a silently pdftk-less image is exactly
-# the failure mode this is fixing.
-RUN if ! command -v java >/dev/null 2>&1; then \
-        javabin="$(ls -d /usr/lib/jvm/*/bin/java 2>/dev/null | head -1)"; \
-        [ -n "$javabin" ] || { echo "ERROR: no JRE found in base image" >&2; exit 1; }; \
-        ln -s "$javabin" /usr/bin/java; \
-    fi && \
-    printf '#!/bin/bash\n\nexec java -jar /usr/bin/pdftk-all.jar "$@"\n' > /usr/bin/pdftk && \
-    chmod +x /usr/bin/pdftk && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python && \
-    java -version && \
-    pdftk --version >/dev/null
 
 # Custom lago fonts — the only content-carrying change vs upstream
 # gotenberg. Preserved from the previous wrapper Dockerfile.
@@ -180,6 +138,6 @@ WORKDIR /home/nonroot
 EXPOSE 3000
 
 # gotenberg-base's entrypoint is `dumb-init --`, so the container ends
-# up running `dumb-init -- gotenberg` — zombie chromium/soffice
+# up running `dumb-init -- gotenberg` — zombie chromium/lok
 # subprocesses get reaped.
 CMD ["gotenberg"]
