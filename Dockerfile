@@ -31,7 +31,7 @@ ARG RUNTIME_IMAGE=ghcr.io/getlago/gotenberg-base:20261116-r1946@sha256:4271972dd
 # renovate: datasource=github-releases depName=gotenberg/gotenberg
 # sha256: https://github.com/gotenberg/gotenberg/archive/refs/tags/${VERSION}.tar.gz
 ARG GOTENBERG_VERSION=v9.9.2
-ARG GOTENBERG_SHA256=0b231f8faea9f8dbf7616237ab6f359045950f30a2add7d11de05ecbbb33bfa4
+ARG GOTENBERG_SHA256=f93f37bf0830fefc7fc42502bd0f6c81681abd12b6117f73049dc97048408884
 # renovate: datasource=github-releases depName=pdfcpu/pdfcpu
 # sha256: https://github.com/pdfcpu/pdfcpu/archive/refs/tags/${VERSION}.tar.gz
 ARG PDFCPU_VERSION=v0.16.4
